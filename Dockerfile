@@ -9,6 +9,6 @@ WORKDIR /app
 COPY . /app
 
 # Install libraries and ensure versions are locked
-#RUN uv sync --locked
+RUN uv sync --locked
 
 ENTRYPOINT ["tail", "-f", "/dev/null"]
