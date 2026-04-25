@@ -7,6 +7,11 @@ API for SKU management
 - Docker Compose
 
 ### Setup
+Copy the example env file and fill in the passwords:
+```bash
+cp .env.example .env
+```
+Then build:
 ```bash
 docker compose build
 ```
