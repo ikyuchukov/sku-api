@@ -9,6 +9,7 @@ WORKDIR /app
 COPY . /app
 
 # Install libraries and ensure versions are locked
-RUN uv sync --locked
+# --no-cache to avoid image size increase
+RUN uv sync --locked --no-cache
 
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "80", "--host", "0.0.0.0"]
