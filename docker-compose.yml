@@ -1,0 +1,11 @@
+services:
+  sku-api:
+    hostname: sku-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    container_name: sku-api
