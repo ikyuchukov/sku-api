@@ -1,5 +1,6 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
+from app.component.database.database import get_db
 from app.component.category.category import Category
 from app.component.category.schema import CategoryCreate, CategoryUpdate
 
