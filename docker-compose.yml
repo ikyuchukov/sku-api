@@ -9,6 +9,9 @@ services:
     volumes:
       - .:/app
     container_name: sku-api
+    depends_on:
+      sku-db:
+        condition: service_healthy
   sku-db:
     container_name: sku-db
     image: mariadb:12.2
