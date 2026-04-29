@@ -10,10 +10,10 @@ class Product(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     sku: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str] = mapped_column(String(3000), nullable=False)
     image: Mapped[str] = mapped_column(String(255), nullable=False)
-    price: Mapped[Decimal] = mapped_column(Numeric(precision=10, scale=2), nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(precision=14, scale=6), nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False)
 
     category: Mapped[Category] = relationship("Category")

@@ -3,6 +3,8 @@ from fastapi.exceptions import HTTPException
 
 from app.component.category.manager import CategoryManager
 from app.component.category.schema import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.component.product.manager import ProductManager
+from app.component.product.schema import ProductCreate, ProductResponse, ProductUpdate
 
 app = FastAPI()
 
@@ -11,10 +13,34 @@ app = FastAPI()
 def root():
     return {"message": "pong"}
 
-@app.post("/product")
-async def create_product():
+@app.post("/product", response_model=ProductResponse)
+async def create_product(product: ProductCreate, manager: ProductManager = Depends()) -> ProductResponse:
+    return manager.create_product(product)
 
-    return {"message": "Product created"}
+@app.get("/product", response_model=list[ProductResponse])
+async def get_products(manager: ProductManager = Depends()) -> list[ProductResponse]:
+    return manager.get_products()
+
+@app.get("/product/{product_id}", response_model=ProductResponse)
+async def get_product(product_id: int, manager: ProductManager = Depends()) -> ProductResponse:
+    product = manager.get_product(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+@app.patch("/product/{product_id}", response_model=ProductResponse)
+async def update_product(product_id: int, product: ProductUpdate, manager: ProductManager = Depends()) -> ProductResponse:
+    db_product = manager.get_product(product_id)
+    if not db_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return manager.update_product(product, db_product)
+
+@app.delete("/product/{product_id}", status_code=204)
+async def delete_product(product_id: int, manager: ProductManager = Depends()):
+    db_product = manager.get_product(product_id)
+    if not db_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    manager.delete_product(db_product)
 
 @app.post("/category", response_model=CategoryResponse)
 async def create_category(category: CategoryCreate, manager: CategoryManager = Depends()) -> CategoryResponse:
