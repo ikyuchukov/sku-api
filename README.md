@@ -19,7 +19,10 @@ docker compose build
 ```bash
 docker compose up
 ```
-
+### Seed some data
+```bash
+docker compose exec sku-api uv run python seed.py
+```
 ### Usage
 ```bash
 curl http://localhost:8000/docs

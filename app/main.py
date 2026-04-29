@@ -4,7 +4,8 @@ from fastapi.exceptions import HTTPException
 from app.component.category.manager import CategoryManager
 from app.component.category.schema import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.component.product.manager import ProductManager
-from app.component.product.schema import ProductCreate, ProductResponse, ProductUpdate
+from app.component.product.schema import ProductCreate, ProductResponse, ProductUpdate, ProductSearch
+from app.component.product.search import Search
 
 app = FastAPI()
 
@@ -18,8 +19,8 @@ async def create_product(product: ProductCreate, manager: ProductManager = Depen
     return manager.create_product(product)
 
 @app.get("/product", response_model=list[ProductResponse])
-async def get_products(manager: ProductManager = Depends()) -> list[ProductResponse]:
-    return manager.get_products()
+async def get_products(product_search: ProductSearch = Depends(), search: Search = Depends()) -> list[ProductResponse]:
+    return search.search(product_search)
 
 @app.get("/product/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, manager: ProductManager = Depends()) -> ProductResponse:

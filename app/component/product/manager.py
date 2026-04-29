@@ -10,7 +10,9 @@ class ProductManager:
         self.db = db
 
     def create_product(self, product: ProductCreate) -> Product:
-        db_product = Product(**product.model_dump())
+        db_product = Product()
+        for field in product.model_fields_set:
+            setattr(db_product, field, getattr(product, field))
         self.db.add(db_product)
         self.db.commit()
         self.db.refresh(db_product)

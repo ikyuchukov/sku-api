@@ -31,3 +31,10 @@ class ProductResponse(BaseModel):
     category_id: int
 
     model_config = {"from_attributes": True}
+
+class ProductSearch(BaseModel):
+    title: Optional[str] = None
+    sku: Optional[str] = None
+    category_id: Optional[int] = None
+    price_min: Optional[Decimal] = None
+    price_max: Optional[Decimal] = None
