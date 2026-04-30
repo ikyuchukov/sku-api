@@ -25,7 +25,7 @@ docker compose exec sku-api uv run python seed.py
 ```
 ### Tests
 ```bash
-uv run pytest tests/ -v
+docker compose exec sku-api uv run pytest tests/ -v
 ```
 ### Usage
 OpenAPI docs:
