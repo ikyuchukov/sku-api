@@ -19,11 +19,22 @@ docker compose build
 ```bash
 docker compose up
 ```
-### Seed some data
+### Seed data
 ```bash
 docker compose exec sku-api uv run python seed.py
 ```
 ### Usage
+OpenAPI docs:
 ```bash
-curl http://localhost:8000/docs
+http://localhost:8000/docs
 ```
+Search UI:
+```bash
+http://localhost:8000
+```
+Admin UI:
+```bash
+http://localhost:8000/admin
+```
+###
+Note: The UI is AI generated and just for demo purposes

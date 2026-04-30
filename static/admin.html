@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--- This UI is entirely AI generated and just for demo purposes --->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SKU API — Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    header span { font-size: 1.2rem; font-weight: 600; }
+    header a { color: #aab4ff; font-size: 0.9rem; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 32px;
+      background: #fff;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .tab {
+      padding: 14px 24px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    .tab.active { border-bottom-color: #1a1a2e; font-weight: 600; }
+
+    .section { display: none; padding: 24px 32px; }
+    .section.active { display: block; }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .section-header h2 { font-size: 1.1rem; }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .btn-primary { background: #1a1a2e; color: #fff; }
+    .btn-primary:hover { background: #2e2e5e; }
+    .btn-danger { background: #fee2e2; color: #b91c1c; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+
+    .form-panel {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .form-panel.open { display: block; }
+    .form-panel h3 { font-size: 1rem; margin-bottom: 16px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .form-grid label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.75rem;
+      color: #666;
+      gap: 4px;
+    }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    .form-grid textarea { resize: vertical; min-height: 64px; }
+    .form-grid .span-full { grid-column: 1 / -1; }
+
+    .form-actions { display: flex; gap: 8px; }
+
+    .msg { font-size: 0.85rem; padding: 4px 0; }
+    .msg.ok { color: #15803d; }
+    .msg.err { color: #b91c1c; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    th { background: #f9fafb; text-align: left; padding: 10px 14px; font-size: 0.8rem; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 10px 14px; font-size: 0.875rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .td-actions { display: flex; gap: 6px; }
+    .td-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>SKU API — Admin</span>
+  <a href="/">← Back to products</a>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('products')">Products</div>
+  <div class="tab" onclick="switchTab('categories')">Categories</div>
+</div>
+
+<!-- PRODUCTS -->
+<div id="tab-products" class="section active">
+  <div class="section-header">
+    <h2>Products</h2>
+    <button class="btn btn-primary" onclick="openProductForm()">+ New product</button>
+  </div>
+
+  <div id="product-form-panel" class="form-panel">
+    <h3 id="product-form-title">New product</h3>
+    <input type="hidden" id="p-id" />
+    <div class="form-grid">
+      <label>SKU <input id="p-sku" placeholder="e.g. NK-001" /></label>
+      <label>Title <input id="p-title" placeholder="Product name" /></label>
+      <label>Price <input id="p-price" type="number" step="0.01" placeholder="0.00" /></label>
+      <label>Category
+        <select id="p-category"></select>
+      </label>
+      <label>Image URL <input id="p-image" placeholder="https://..." /></label>
+      <label class="span-full">Description <textarea id="p-description" placeholder="Product description"></textarea></label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+      <button class="btn btn-secondary" onclick="closeProductForm()">Cancel</button>
+      <span id="p-msg" class="msg"></span>
+    </div>
+  </div>
+
+  <table id="product-table">
+    <thead>
+      <tr>
+        <th>Image</th><th>SKU</th><th>Title</th><th>Price</th><th>Category</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="product-tbody"></tbody>
+  </table>
+</div>
+
+<!-- CATEGORIES -->
+<div id="tab-categories" class="section">
+  <div class="section-header">
+    <h2>Categories</h2>
+    <button class="btn btn-primary" onclick="openCategoryForm()">+ New category</button>
+  </div>
+
+  <div id="category-form-panel" class="form-panel">
+    <h3 id="category-form-title">New category</h3>
+    <input type="hidden" id="c-id" />
+    <div class="form-grid">
+      <label>Name <input id="c-name" placeholder="Category name" /></label>
+      <label>Parent category
+        <select id="c-parent">
+          <option value="">None (top level)</option>
+        </select>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveCategory()">Save</button>
+      <button class="btn btn-secondary" onclick="closeCategoryForm()">Cancel</button>
+      <span id="c-msg" class="msg"></span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Parent</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="category-tbody"></tbody>
+  </table>
+</div>
+
+<script>
+  let allCategories = [];
+  let categoryMap = {};
+
+  // ── TABS ──────────────────────────────────────────────────────
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['products','categories'][i] === name));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── CATEGORIES ────────────────────────────────────────────────
+  function flattenCategories(cats, depth, result) {
+    cats.forEach(c => {
+      result.push({ ...c, depth });
+      if (c.children && c.children.length) flattenCategories(c.children, depth + 1, result);
+    });
+    return result;
+  }
+
+  async function loadCategories() {
+    const res = await fetch('/category');
+    const tree = await res.json();
+    allCategories = flattenCategories(tree, 0, []);
+    categoryMap = {};
+    allCategories.forEach(c => categoryMap[c.id] = c.name);
+
+    const prefix = (depth) => '\u00a0\u00a0'.repeat(depth * 2) + (depth > 0 ? '\u2014 ' : '');
+
+    ['p-category', 'c-parent'].forEach(id => {
+      const sel = document.getElementById(id);
+      const isParent = id === 'c-parent';
+      sel.innerHTML = isParent ? '<option value="">None (top level)</option>' : '';
+      allCategories.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = prefix(c.depth) + c.name;
+        sel.appendChild(opt);
+      });
+    });
+
+    renderCategoryTable();
+  }
+
+  function renderCategoryTable() {
+    document.getElementById('category-tbody').innerHTML = allCategories.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${'\u00a0\u00a0'.repeat(c.depth * 2)}${c.name}</td>
+        <td>${c.parent_id ? (categoryMap[c.parent_id] ?? c.parent_id) : '—'}</td>
+        <td class="td-actions">
+          <button class="btn btn-secondary" onclick="editCategory(${c.id})">Edit</button>
+          <button class="btn btn-danger" onclick="deleteCategory(${c.id})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openCategoryForm(cat) {
+    document.getElementById('category-form-title').textContent = cat ? 'Edit category' : 'New category';
+    document.getElementById('c-id').value = cat ? cat.id : '';
+    document.getElementById('c-name').value = cat ? cat.name : '';
+    document.getElementById('c-parent').value = cat?.parent_id ?? '';
+    document.getElementById('c-msg').textContent = '';
+    document.getElementById('category-form-panel').classList.add('open');
+  }
+
+  function closeCategoryForm() {
+    document.getElementById('category-form-panel').classList.remove('open');
+  }
+
+  function editCategory(id) {
+    const cat = allCategories.find(c => c.id === id);
+    if (cat) openCategoryForm(cat);
+  }
+
+  async function saveCategory() {
+    const id = document.getElementById('c-id').value;
+    const body = {
+      name: document.getElementById('c-name').value.trim(),
+      parent_id: document.getElementById('c-parent').value ? parseInt(document.getElementById('c-parent').value) : null,
+    };
+    const url = id ? `/category/${id}` : '/category';
+    const method = id ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const msg = document.getElementById('c-msg');
+    if (res.ok) {
+      msg.className = 'msg ok'; msg.textContent = 'Saved.';
+      await loadCategories();
+      setTimeout(closeCategoryForm, 800);
+    } else {
+      msg.className = 'msg err'; msg.textContent = 'Error: ' + (await res.text());
+    }
+  }
+
+  async function deleteCategory(id) {
+    if (!confirm('Delete this category?')) return;
+    const res = await fetch(`/category/${id}`, { method: 'DELETE' });
+    if (res.ok) await loadCategories();
+    else alert('Delete failed: ' + (await res.text()));
+  }
+
+  // ── PRODUCTS ──────────────────────────────────────────────────
+  async function loadProducts() {
+    const res = await fetch('/product');
+    const products = await res.json();
+    document.getElementById('product-tbody').innerHTML = products.map(p => `
+      <tr>
+        <td><img class="td-img" src="${p.image}" onerror="this.src='https://placehold.co/40x40?text=?'" /></td>
+        <td style="font-family:monospace;font-size:0.8rem">${p.sku}</td>
+        <td>${p.title}</td>
+        <td>$${parseFloat(p.price).toFixed(2)}</td>
+        <td>${categoryMap[p.category_id] ?? p.category_id}</td>
+        <td class="td-actions">
+          <button class="btn btn-secondary" onclick="editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">Edit</button>
+          <button class="btn btn-danger" onclick="deleteProduct(${p.id})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openProductForm(p) {
+    document.getElementById('product-form-title').textContent = p ? 'Edit product' : 'New product';
+    document.getElementById('p-id').value = p ? p.id : '';
+    document.getElementById('p-sku').value = p ? p.sku : '';
+    document.getElementById('p-title').value = p ? p.title : '';
+    document.getElementById('p-description').value = p ? p.description : '';
+    document.getElementById('p-image').value = p ? p.image : '';
+    document.getElementById('p-price').value = p ? p.price : '';
+    document.getElementById('p-category').value = p ? p.category_id : '';
+    document.getElementById('p-msg').textContent = '';
+    document.getElementById('product-form-panel').classList.add('open');
+  }
+
+  function closeProductForm() {
+    document.getElementById('product-form-panel').classList.remove('open');
+  }
+
+  function editProduct(p) {
+    openProductForm(p);
+  }
+
+  async function saveProduct() {
+    const id = document.getElementById('p-id').value;
+    const body = {
+      sku: document.getElementById('p-sku').value.trim(),
+      title: document.getElementById('p-title').value.trim(),
+      description: document.getElementById('p-description').value.trim(),
+      image: document.getElementById('p-image').value.trim(),
+      price: document.getElementById('p-price').value,
+      category_id: parseInt(document.getElementById('p-category').value),
+    };
+    const url = id ? `/product/${id}` : '/product';
+    const method = id ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const msg = document.getElementById('p-msg');
+    if (res.ok) {
+      msg.className = 'msg ok'; msg.textContent = 'Saved.';
+      await loadProducts();
+      setTimeout(closeProductForm, 800);
+    } else {
+      msg.className = 'msg err'; msg.textContent = 'Error: ' + (await res.text());
+    }
+  }
+
+  async function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    const res = await fetch(`/product/${id}`, { method: 'DELETE' });
+    if (res.ok) await loadProducts();
+    else alert('Delete failed: ' + (await res.text()));
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────
+  (async () => {
+    await loadCategories();
+    await loadProducts();
+  })();
+</script>
+</body>
+</html>
