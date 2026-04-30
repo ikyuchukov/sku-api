@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.component.category.manager import CategoryManager
 from app.component.category.schema import CategoryCreate, CategoryResponse, CategoryUpdate
@@ -8,6 +10,12 @@ from app.component.product.schema import ProductCreate, ProductResponse, Product
 from app.component.product.search import Search
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse("static/index.html")
 
 
 @app.get("/ping")

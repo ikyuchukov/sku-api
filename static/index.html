@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SKU API</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 32px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 20px 32px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      align-items: flex-end;
+    }
+
+    .filters label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.75rem;
+      color: #666;
+      gap: 4px;
+    }
+
+    .filters input, .filters select {
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      min-width: 140px;
+    }
+
+    .filters button {
+      padding: 8px 20px;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      align-self: flex-end;
+    }
+
+    .filters button:hover { background: #2e2e5e; }
+
+    .filters button.reset {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .filters button.reset:hover { background: #ccc; }
+
+    .count {
+      padding: 12px 32px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      padding: 0 32px 32px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      background: #f0f0f0;
+    }
+
+    .card-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .card-sku {
+      font-size: 0.75rem;
+      color: #888;
+      font-family: monospace;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 8px;
+    }
+
+    .card-price {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #1a1a2e;
+    }
+
+    .card-category {
+      font-size: 0.7rem;
+      background: #f0f0f0;
+      color: #555;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .empty {
+      grid-column: 1/-1;
+      text-align: center;
+      color: #aaa;
+      padding: 60px 0;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>SKU API</header>
+
+<div class="filters">
+  <label>Title
+    <input id="f-title" type="text" placeholder="e.g. Apple" />
+  </label>
+  <label>SKU
+    <input id="f-sku" type="text" placeholder="e.g. GRO-BRD-APP-016" />
+  </label>
+  <label>Category
+    <select id="f-category">
+      <option value="">All categories</option>
+    </select>
+  </label>
+  <label>Min price
+    <input id="f-price-min" type="number" placeholder="0.00" step="0.01" min="0" />
+  </label>
+  <label>Max price
+    <input id="f-price-max" type="number" placeholder="999.99" step="0.01" min="0" />
+  </label>
+  <button onclick="search()">Search</button>
+  <button class="reset" onclick="reset()">Reset</button>
+</div>
+
+<div class="count" id="count"></div>
+<div class="grid" id="grid"></div>
+
+<script>
+  const categoryNames = {};
+
+  function addCategoryOptions(sel, categories, depth) {
+    const prefix = '\u00a0\u00a0'.repeat(depth * 2) + (depth > 0 ? '— ' : '');
+    categories.forEach(c => {
+      categoryNames[c.id] = c.name;
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = prefix + c.name;
+      sel.appendChild(opt);
+      if (c.children && c.children.length > 0) {
+        addCategoryOptions(sel, c.children, depth + 1);
+      }
+    });
+  }
+
+  async function loadCategories() {
+    const res = await fetch('/category');
+    const data = await res.json();
+    const sel = document.getElementById('f-category');
+    addCategoryOptions(sel, data, 0);
+  }
+
+  async function search() {
+    const params = new URLSearchParams();
+    const title = document.getElementById('f-title').value.trim();
+    const sku = document.getElementById('f-sku').value.trim();
+    const category = document.getElementById('f-category').value;
+    const priceMin = document.getElementById('f-price-min').value;
+    const priceMax = document.getElementById('f-price-max').value;
+
+    if (title) params.set('title', title);
+    if (sku) params.set('sku', sku);
+    if (category) params.set('category_id', category);
+    if (priceMin) params.set('price_min', priceMin);
+    if (priceMax) params.set('price_max', priceMax);
+
+    const res = await fetch('/product?' + params.toString());
+    const products = await res.json();
+    render(products);
+  }
+
+  function reset() {
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-sku').value = '';
+    document.getElementById('f-category').value = '';
+    document.getElementById('f-price-min').value = '';
+    document.getElementById('f-price-max').value = '';
+    search();
+  }
+
+  function render(products) {
+    const grid = document.getElementById('grid');
+    const count = document.getElementById('count');
+    count.textContent = `${products.length} product${products.length !== 1 ? 's' : ''} found`;
+
+    if (products.length === 0) {
+      grid.innerHTML = '<div class="empty">No products found.</div>';
+      return;
+    }
+
+    grid.innerHTML = products.map(p => `
+      <div class="card">
+        <img src="${p.image}" alt="${p.title}" onerror="this.src='https://placehold.co/220x160?text=No+Image'" />
+        <div class="card-body">
+          <div class="card-title">${p.title}</div>
+          <div class="card-sku">${p.sku}</div>
+          <div class="card-footer">
+            <span class="card-price">$${parseFloat(p.price).toFixed(2)}</span>
+            <span class="card-category">${categoryNames[p.category_id] ?? 'Unknown'}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  document.querySelectorAll('.filters input').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+  });
+
+  (async () => {
+    await loadCategories();
+    await search();
+  })();
+</script>
+</body>
+</html>

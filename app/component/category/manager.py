@@ -4,7 +4,7 @@ from app.component.database.database import get_db
 from app.component.category.category import Category
 from app.component.category.schema import CategoryCreate, CategoryUpdate
 
-#Would be separated into multiple services when complexity arrives
+#Would be separated into multiple services when more complexity arrives
 class CategoryManager:
     def __init__(self, db: Session = Depends(get_db)):
         self.db = db
@@ -36,4 +36,4 @@ class CategoryManager:
         return self.db.get(Category, category_id)
 
     def get_categories(self) -> list[Category]:
-        return self.db.query(Category).all()
+        return self.db.query(Category).filter(Category.parent_id == None).all()

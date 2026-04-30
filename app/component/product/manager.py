@@ -4,7 +4,7 @@ from app.component.database.database import get_db
 from app.component.product.product import Product
 from app.component.product.schema import ProductCreate, ProductUpdate
 
-
+#Would be separated into multiple services when more complexity arrives
 class ProductManager:
     def __init__(self, db: Session = Depends(get_db)):
         self.db = db
