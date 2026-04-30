@@ -1,5 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
+
+from app.component.category.manager import CategoryManager
 from app.component.database.database import get_db
 from app.component.product.product import Product
 from app.component.product.schema import ProductSearch
@@ -7,15 +9,18 @@ from app.component.product.schema import ProductSearch
 
 
 class Search:
-    def __init__(self, db: Session = Depends(get_db)):
+    def __init__(self, db: Session = Depends(get_db), category_manager: CategoryManager = Depends()):
         self.db = db
+        self.category_manager = category_manager
 
     def search(self, product_search: ProductSearch) -> list[Product]:
         #In a more complex system, this would be handled by ElasticSearch/Algolia or similar
         #We leverage the full-text index created in the Product
         query = self.db.query(Product)
         if product_search.category_id:
-            query = query.filter(Product.category_id == product_search.category_id)
+            query = query.filter(
+                Product.category_id.in_(self.category_manager.get_all_children_ids(product_search.category_id))
+            )
         if product_search.price_min:
             query = query.filter(Product.price >= product_search.price_min)
         if product_search.price_max:

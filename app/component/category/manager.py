@@ -35,5 +35,12 @@ class CategoryManager:
     def get_category(self, category_id: int) -> Category|None:
         return self.db.get(Category, category_id)
 
-    def get_categories(self) -> list[Category]:
-        return self.db.query(Category).filter(Category.parent_id == None).all()
+    def get_categories(self, parent_id: int|None = None) -> list[Category]:
+        return self.db.query(Category).filter(Category.parent_id == parent_id).all()
+
+    def get_all_children_ids(self, category_id: int) -> list[int]:
+        ids = [category_id]
+        for child_category in self.get_categories(category_id):
+            ids.extend(self.get_all_children_ids(child_category.id))
+
+        return ids

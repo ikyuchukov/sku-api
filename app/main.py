@@ -27,7 +27,7 @@ async def create_product(product: ProductCreate, manager: ProductManager = Depen
     return manager.create_product(product)
 
 @app.get("/product", response_model=list[ProductResponse])
-async def get_products(product_search: ProductSearch = Depends(), search: Search = Depends()) -> list[ProductResponse]:
+async def get_products(product_search: ProductSearch = Depends(), search: Search = Depends(), category_manager: CategoryManager = Depends()) -> list[ProductResponse]:
     return search.search(product_search)
 
 @app.get("/product/{product_id}", response_model=ProductResponse)
