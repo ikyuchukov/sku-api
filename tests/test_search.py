@@ -80,6 +80,53 @@ class TestSearchByTitle:
 
         self.mock_query.filter.assert_not_called()
 
+    def test_uses_sanitized_title_from_schema(self):
+        # ProductSearch strips boolean-mode operators; Search just consumes the
+        # already-sanitized value.
+        self.search.search(ProductSearch(title="C++ pens"))
+
+        assert filter_sqls(self.mock_query) == [
+            "MATCH (products.title) AGAINST ('C  pens*' IN BOOLEAN MODE)"
+        ]
+
+    @pytest.mark.parametrize("raw", ["+++", "---", "@@@", "   ", "()*"])
+    def test_no_filter_when_title_is_only_operators(self, raw):
+        # Schema collapses these to None, so Search applies no filter.
+        self.search.search(ProductSearch(title=raw))
+
+        self.mock_query.filter.assert_not_called()
+
+
+class TestProductSearchTitleSanitization:
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            ("apple", "apple"),
+            ("C++ pens", "C  pens"),
+            ('"foo bar"', "foo bar"),
+            ("-apple", "apple"),
+            ("rice@home", "rice home"),
+            # Non-operator punctuation is left intact - MySQL FT treats it as a separator.
+            ("beef  steak!!", "beef  steak!!"),
+            ("  spaced  ", "spaced"),
+            # Unicode word chars are preserved.
+            ("Café", "Café"),
+            ("日本茶", "日本茶"),
+            ("Bob's apples", "Bob's apples"),
+            # Mixed: operators stripped, unicode kept.
+            ("+Café -bitter", "Café  bitter"),
+        ],
+    )
+    def test_sanitizes_only_boolean_mode_operators(self, raw, expected):
+        assert ProductSearch(title=raw).title == expected
+
+    @pytest.mark.parametrize("raw", ["+++", "---", "@@@", "   ", "()*", ""])
+    def test_collapses_to_none_when_nothing_remains(self, raw):
+        assert ProductSearch(title=raw).title is None
+
+    def test_none_passes_through(self):
+        assert ProductSearch(title=None).title is None
+
 
 class TestSearchBySku:
     def setup_method(self):

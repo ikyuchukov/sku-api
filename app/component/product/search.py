@@ -26,6 +26,8 @@ class Search:
         if product_search.price_max:
             query = query.filter(Product.price <= product_search.price_max)
         if product_search.title:
+            # Title is sanitized to alphanumerics + whitespace by ProductSearch
+            # so it is safe to feed to MySQL's boolean-mode FT parser.
             query = query.filter(Product.title.match(f"{product_search.title}*", mysql_boolean_mode=True))
         if product_search.sku:
             query = query.filter(Product.sku == product_search.sku)

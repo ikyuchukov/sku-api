@@ -2,11 +2,11 @@ from typing import Optional
 from pydantic import BaseModel
 
 class CategoryCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=3)
     parent_id: Optional[int] = None
 
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=3)
     parent_id: Optional[int] = None
 
 class CategoryResponse(BaseModel):
