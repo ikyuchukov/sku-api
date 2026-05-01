@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProductCreate(BaseModel):
@@ -37,4 +37,4 @@ class ProductSearch(BaseModel):
     sku: Optional[str] = None
     category_id: Optional[int] = None
     price_min: Optional[Decimal] = None
-    price_max: Optional[Decimal] = None
+    price_max: Optional[Decimal] = Field(default=None, gt=0)

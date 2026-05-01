@@ -2,12 +2,27 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
+from sqlalchemy.dialects import mysql
+from sqlalchemy.orm import Query, Session
 
 from app.component.category.manager import CategoryManager
 from app.component.product.product import Product
 from app.component.product.schema import ProductSearch
 from app.component.product.search import Search
-from sqlalchemy.orm import Query, Session
+
+
+def compiled(expr) -> str:
+    """Render a SQLAlchemy expression as MySQL SQL with parameters inlined.
+
+    Used to assert the *shape and value* of filters emitted by Search.search,
+    not just that `.filter()` was called.
+    """
+    return str(expr.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
+
+
+def filter_sqls(mock_query) -> list[str]:
+    return [compiled(call.args[0]) for call in mock_query.filter.call_args_list]
 
 
 def make_search(products=None, category_ids=None):
@@ -56,7 +71,9 @@ class TestSearchByTitle:
     def test_applies_filter_when_title_provided(self):
         self.search.search(ProductSearch(title="apple"))
 
-        self.mock_query.filter.assert_called_once()
+        assert filter_sqls(self.mock_query) == [
+            "MATCH (products.title) AGAINST ('apple*' IN BOOLEAN MODE)"
+        ]
 
     def test_no_filter_when_title_is_none(self):
         self.search.search(ProductSearch(title=None))
@@ -71,7 +88,9 @@ class TestSearchBySku:
     def test_applies_filter_when_sku_provided(self):
         self.search.search(ProductSearch(sku="GRO-BRD-APP-016"))
 
-        self.mock_query.filter.assert_called_once()
+        assert filter_sqls(self.mock_query) == [
+            "products.sku = 'GRO-BRD-APP-016'"
+        ]
 
     def test_no_filter_when_sku_is_none(self):
         self.search.search(ProductSearch(sku=None))
@@ -86,22 +105,35 @@ class TestSearchByPrice:
     def test_applies_filter_for_price_min(self):
         self.search.search(ProductSearch(price_min=Decimal("5.00")))
 
-        self.mock_query.filter.assert_called_once()
+        assert filter_sqls(self.mock_query) == ["products.price >= 5.00"]
 
     def test_applies_filter_for_price_max(self):
         self.search.search(ProductSearch(price_max=Decimal("20.00")))
 
-        self.mock_query.filter.assert_called_once()
+        assert filter_sqls(self.mock_query) == ["products.price <= 20.00"]
 
     def test_applies_two_filters_for_price_range(self):
         self.search.search(ProductSearch(price_min=Decimal("5.00"), price_max=Decimal("20.00")))
 
-        assert self.mock_query.filter.call_count == 2
+        assert filter_sqls(self.mock_query) == [
+            "products.price >= 5.00",
+            "products.price <= 20.00",
+        ]
 
     def test_no_filter_when_price_is_none(self):
         self.search.search(ProductSearch(price_min=None, price_max=None))
 
         self.mock_query.filter.assert_not_called()
+
+    def test_price_min_is_applied_when_zero(self):
+        self.search.search(ProductSearch(price_min=Decimal("0.00"), price_max=None))
+
+        assert filter_sqls(self.mock_query) == ["products.price >= 0.00"]
+
+    @pytest.mark.parametrize("bad_value", [Decimal("0"), Decimal("-1.00")])
+    def test_price_max_must_be_greater_than_zero(self, bad_value):
+        with pytest.raises(ValidationError):
+            ProductSearch(price_max=bad_value)
 
 
 class TestSearchByCategory:
@@ -114,7 +146,9 @@ class TestSearchByCategory:
         self.search.search(ProductSearch(category_id=1))
 
         self.mock_category_manager.get_all_children_ids.assert_called_once_with(1)
-        self.mock_query.filter.assert_called_once()
+        assert filter_sqls(self.mock_query) == [
+            "products.category_id IN (1, 2, 3)"
+        ]
 
     def test_resolves_descendant_category_ids(self):
         self.mock_category_manager.get_all_children_ids.return_value = [2, 5, 6]
@@ -122,6 +156,9 @@ class TestSearchByCategory:
         self.search.search(ProductSearch(category_id=2))
 
         self.mock_category_manager.get_all_children_ids.assert_called_once_with(2)
+        assert filter_sqls(self.mock_query) == [
+            "products.category_id IN (2, 5, 6)"
+        ]
 
     def test_no_filter_when_category_id_is_none(self):
         self.search.search(ProductSearch(category_id=None))
@@ -145,7 +182,13 @@ class TestSearchCombinedFilters:
             category_id=3,
         ))
 
-        assert self.mock_query.filter.call_count == 5
+        assert filter_sqls(self.mock_query) == [
+            "products.category_id IN (3)",
+            "products.price >= 5.00",
+            "products.price <= 50.00",
+            "MATCH (products.title) AGAINST ('steak*' IN BOOLEAN MODE)",
+            "products.sku = 'GRO-BRD-BEE-017'",
+        ]
         self.mock_category_manager.get_all_children_ids.assert_called_once_with(3)
 
     def test_returns_results_with_combined_filters(self):

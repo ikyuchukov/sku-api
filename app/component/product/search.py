@@ -21,7 +21,7 @@ class Search:
             query = query.filter(
                 Product.category_id.in_(self.category_manager.get_all_children_ids(product_search.category_id))
             )
-        if product_search.price_min:
+        if product_search.price_min is not None:
             query = query.filter(Product.price >= product_search.price_min)
         if product_search.price_max:
             query = query.filter(Product.price <= product_search.price_max)
