@@ -1,16 +1,17 @@
 from fastapi import Depends
-from sqlalchemy.orm import Session
-from app.component.category.category import Category
-from app.component.database.database import get_db
-from app.component.product.product import Product
-from app.component.product.schema import ProductCreate, ProductUpdate
-from app.component.category.exceptions import CategoryNotFoundError
-from app.component.product.exceptions import DuplicateSkuError
 
-#Would be separated into multiple services when more complexity arrives
+from app.component.category.exceptions import CategoryNotFoundError
+from app.component.category.repository import CategoryRepository
+from app.component.product.exceptions import DuplicateSkuError
+from app.component.product.product import Product
+from app.component.product.repository import ProductRepository
+from app.component.product.schema import ProductCreate, ProductUpdate
+
+
 class ProductManager:
-    def __init__(self, db: Session = Depends(get_db)):
-        self.db = db
+    def __init__(self, repository: ProductRepository = Depends(), category_repository: CategoryRepository = Depends()):
+        self.repository = repository
+        self.category_repository = category_repository
 
     def create_product(self, product: ProductCreate) -> Product:
         self._ensure_sku_available(product.sku)
@@ -19,15 +20,9 @@ class ProductManager:
         db_product = Product()
         for field in product.model_fields_set:
             setattr(db_product, field, getattr(product, field))
-        self.db.add(db_product)
-        self.db.flush()
+        self.repository.db.add(db_product)
+        self.repository.db.flush()
         return db_product
-
-    def get_product(self, product_id: int) -> Product | None:
-        return self.db.get(Product, product_id)
-
-    def get_products(self) -> list[Product]:
-        return self.db.query(Product).all()
 
     def update_product(self, product: ProductUpdate, db_product: Product) -> Product:
         fields = product.model_fields_set
@@ -38,18 +33,17 @@ class ProductManager:
 
         for field in fields:
             setattr(db_product, field, getattr(product, field))
-        self.db.flush()
+        self.repository.db.flush()
         return db_product
 
     def delete_product(self, product: Product) -> None:
-        self.db.delete(product)
-        self.db.flush()
+        self.repository.db.delete(product)
+        self.repository.db.flush()
 
     def _ensure_sku_available(self, sku: str) -> None:
-        exists = self.db.query(Product.id).filter(Product.sku == sku).first()
-        if exists:
+        if self.repository.get_product_by_sku(sku):
             raise DuplicateSkuError(f"A product with sku {sku!r} already exists.")
 
     def _ensure_category_exists(self, category_id: int) -> None:
-        if not self.db.get(Category, category_id):
+        if not self.category_repository.get_category(category_id):
             raise CategoryNotFoundError(f"category_id {category_id} does not exist.")

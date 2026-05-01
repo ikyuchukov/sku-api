@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.component.category.manager import CategoryManager
+from app.component.category.repository import CategoryRepository
 from app.component.category.schema import (
     CategoryCreate,
     CategoryDto,
@@ -24,17 +25,17 @@ async def create_category(
 
 
 @router.get("", response_model=list[CategoryDto])
-async def get_categories(manager: CategoryManager = Depends()) -> list[CategoryDto]:
-    return manager.build_category_tree(manager.get_all_categories())
+async def get_categories(repository: CategoryRepository = Depends()) -> list[CategoryDto]:
+    return CategoryManager.build_category_tree(repository.get_all_categories())
 
 
 @router.get("/{category_id}", response_model=CategoryDto)
-async def get_category(category_id: int, manager: CategoryManager = Depends()) -> CategoryDto:
-    descendant_ids = manager.get_all_children_ids(category_id)
+async def get_category(category_id: int, repository: CategoryRepository = Depends()) -> CategoryDto:
+    descendant_ids = repository.get_all_children_ids(category_id)
     if not descendant_ids:
         raise HTTPException(status_code=404, detail="Category not found")
-    rows = manager.get_categories_by_ids(descendant_ids)
-    return manager.build_category_tree(rows)[0]
+    rows = repository.get_categories_by_ids(descendant_ids)
+    return CategoryManager.build_category_tree(rows)[0]
 
 
 @router.patch("/{category_id}", response_model=CategoryDto)
@@ -42,9 +43,10 @@ async def update_category(
     category_id: int,
     category: CategoryUpdate,
     manager: CategoryManager = Depends(),
+    repository: CategoryRepository = Depends(),
     db: Session = Depends(get_db),
 ) -> CategoryDto:
-    db_category = manager.get_category(category_id)
+    db_category = repository.get_category(category_id)
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     updated = manager.update_category(category, db_category)
@@ -56,9 +58,10 @@ async def update_category(
 async def delete_category(
     category_id: int,
     manager: CategoryManager = Depends(),
+    repository: CategoryRepository = Depends(),
     db: Session = Depends(get_db),
 ):
-    db_category = manager.get_category(category_id)
+    db_category = repository.get_category(category_id)
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     manager.delete_category(db_category)

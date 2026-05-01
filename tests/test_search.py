@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Query, Session
 
-from app.component.category.manager import CategoryManager
+from app.component.category.repository import CategoryRepository
 from app.component.product.product import Product
 from app.component.product.schema import ProductSearch
 from app.component.product.search import Search
@@ -26,7 +26,7 @@ def filter_sqls(mock_query) -> list[str]:
 
 
 def make_search(products=None, category_ids=None):
-    """Build a Search instance with a mocked db and category_manager."""
+    """Build a Search instance with a mocked db and category_repository."""
     mock_query = MagicMock(spec=Query)
     mock_query.filter.return_value = mock_query
     mock_query.all.return_value = products or []
@@ -34,19 +34,19 @@ def make_search(products=None, category_ids=None):
     mock_db = MagicMock(spec=Session)
     mock_db.query.return_value = mock_query
 
-    mock_category_manager = MagicMock(spec=CategoryManager)
-    mock_category_manager.get_all_children_ids.return_value = category_ids or []
+    mock_category_repository = MagicMock(spec=CategoryRepository)
+    mock_category_repository.get_all_children_ids.return_value = category_ids or []
 
     search = Search.__new__(Search)
     search.db = mock_db
-    search.category_manager = mock_category_manager
+    search.category_repository = mock_category_repository
 
-    return search, mock_query, mock_category_manager
+    return search, mock_query, mock_category_repository
 
 
 class TestSearchNoFilters:
     def setup_method(self):
-        self.search, self.mock_query, self.mock_category_manager = make_search()
+        self.search, self.mock_query, self.mock_category_repository = make_search()
 
     def test_returns_all_products_when_no_filters(self):
         products = [MagicMock(spec=Product), MagicMock(spec=Product)]
@@ -185,24 +185,24 @@ class TestSearchByPrice:
 
 class TestSearchByCategory:
     def setup_method(self):
-        self.search, self.mock_query, self.mock_category_manager = make_search()
+        self.search, self.mock_query, self.mock_category_repository = make_search()
 
     def test_applies_filter_when_category_id_provided(self):
-        self.mock_category_manager.get_all_children_ids.return_value = [1, 2, 3]
+        self.mock_category_repository.get_all_children_ids.return_value = [1, 2, 3]
 
         self.search.search(ProductSearch(category_id=1))
 
-        self.mock_category_manager.get_all_children_ids.assert_called_once_with(1)
+        self.mock_category_repository.get_all_children_ids.assert_called_once_with(1)
         assert filter_sqls(self.mock_query) == [
             "products.category_id IN (1, 2, 3)"
         ]
 
     def test_resolves_descendant_category_ids(self):
-        self.mock_category_manager.get_all_children_ids.return_value = [2, 5, 6]
+        self.mock_category_repository.get_all_children_ids.return_value = [2, 5, 6]
 
         self.search.search(ProductSearch(category_id=2))
 
-        self.mock_category_manager.get_all_children_ids.assert_called_once_with(2)
+        self.mock_category_repository.get_all_children_ids.assert_called_once_with(2)
         assert filter_sqls(self.mock_query) == [
             "products.category_id IN (2, 5, 6)"
         ]
@@ -210,16 +210,16 @@ class TestSearchByCategory:
     def test_no_filter_when_category_id_is_none(self):
         self.search.search(ProductSearch(category_id=None))
 
-        self.mock_category_manager.get_all_children_ids.assert_not_called()
+        self.mock_category_repository.get_all_children_ids.assert_not_called()
         self.mock_query.filter.assert_not_called()
 
 
 class TestSearchCombinedFilters:
     def setup_method(self):
-        self.search, self.mock_query, self.mock_category_manager = make_search()
+        self.search, self.mock_query, self.mock_category_repository = make_search()
 
     def test_all_filters_applied(self):
-        self.mock_category_manager.get_all_children_ids.return_value = [3]
+        self.mock_category_repository.get_all_children_ids.return_value = [3]
 
         self.search.search(ProductSearch(
             title="steak",
@@ -236,12 +236,12 @@ class TestSearchCombinedFilters:
             "MATCH (products.title) AGAINST ('steak*' IN BOOLEAN MODE)",
             "products.sku = 'GRO-BRD-BEE-017'",
         ]
-        self.mock_category_manager.get_all_children_ids.assert_called_once_with(3)
+        self.mock_category_repository.get_all_children_ids.assert_called_once_with(3)
 
     def test_returns_results_with_combined_filters(self):
         products = [MagicMock(spec=Product)]
         self.mock_query.all.return_value = products
-        self.mock_category_manager.get_all_children_ids.return_value = [1]
+        self.mock_category_repository.get_all_children_ids.return_value = [1]
 
         result = self.search.search(ProductSearch(price_min=Decimal("1.00"), category_id=1))
 

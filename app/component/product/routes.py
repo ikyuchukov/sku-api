@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.component.database.database import get_db
 from app.component.product.manager import ProductManager
+from app.component.product.repository import ProductRepository
 from app.component.product.schema import (
     ProductCreate,
     ProductResponse,
@@ -34,8 +35,8 @@ async def get_products(
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
-async def get_product(product_id: int, manager: ProductManager = Depends()) -> ProductResponse:
-    product = manager.get_product(product_id)
+async def get_product(product_id: int, repository: ProductRepository = Depends()) -> ProductResponse:
+    product = repository.get_product(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
@@ -46,9 +47,10 @@ async def update_product(
     product_id: int,
     product: ProductUpdate,
     manager: ProductManager = Depends(),
+    repository: ProductRepository = Depends(),
     db: Session = Depends(get_db),
 ) -> ProductResponse:
-    db_product = manager.get_product(product_id)
+    db_product = repository.get_product(product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     updated = manager.update_product(product, db_product)
@@ -60,9 +62,10 @@ async def update_product(
 async def delete_product(
     product_id: int,
     manager: ProductManager = Depends(),
+    repository: ProductRepository = Depends(),
     db: Session = Depends(get_db),
 ):
-    db_product = manager.get_product(product_id)
+    db_product = repository.get_product(product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     manager.delete_product(db_product)
