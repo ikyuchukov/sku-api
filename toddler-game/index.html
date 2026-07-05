@@ -1,0 +1,215 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Игрички</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; }
+  body {
+    background: linear-gradient(160deg, #ffe29f 0%, #ffa99f 50%, #ff719a 100%);
+    display: flex; flex-direction: column; height: 100dvh; touch-action: manipulation;
+  }
+  #top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; }
+  #stars { font-size: 28px; letter-spacing: 2px; min-height: 34px; }
+  .homebtn { font-size: 30px; background: rgba(255,255,255,.5); border: none; border-radius: 50%;
+    width: 52px; height: 52px; cursor: pointer; }
+  #stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 10px; gap: 14px; }
+  #prompt { font-size: clamp(60px, 22vw, 160px); line-height: 1; text-align: center;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,.15)); }
+  #promptsub { font-size: 22px; color: #6a2b3f; font-weight: 700; text-align:center; }
+  #choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; width: 100%; max-width: 560px; }
+  .choice {
+    background: #fff; border: none; border-radius: 26px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 0 rgba(0,0,0,.12); transition: transform .08s;
+    font-size: clamp(48px, 15vw, 96px);
+  }
+  .choice:active { transform: translateY(4px); box-shadow: 0 4px 0 rgba(0,0,0,.12); }
+  .choice.big { width: 44%; aspect-ratio: 1; }
+  .choice.wide { width: 90%; height: 120px; }
+  .pop { animation: pop .4s; }
+  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.35)} 100%{transform:scale(1)} }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px)}
+    75%{transform:translateX(10px)} }
+  /* home menu */
+  #menu { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; }
+  #menu h1 { font-size: 34px; color:#6a2b3f; margin: 0 0 6px; }
+  .gamebtn { font-size: 64px; background: #fff; border: none; border-radius: 30px;
+    width: 130px; height: 130px; cursor: pointer; box-shadow: 0 8px 0 rgba(0,0,0,.12); }
+  .gamebtn:active { transform: translateY(4px); }
+  .row { display: flex; gap: 22px; }
+  .hidden { display: none !important; }
+  #confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .conf { position: absolute; font-size: 30px; animation: fall 1.4s linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: 0; } }
+</style>
+
+<div id="top">
+  <button class="homebtn" onclick="goHome()">🏠</button>
+  <div id="stars"></div>
+</div>
+
+<div id="stage" class="hidden">
+  <div id="prompt"></div>
+  <div id="promptsub"></div>
+  <div id="choices"></div>
+</div>
+
+<div id="menu">
+  <h1>Играй! 🎈</h1>
+  <div class="row">
+    <button class="gamebtn" onclick="startGame('count')">🔢</button>
+    <button class="gamebtn" onclick="startGame('color')">🎨</button>
+  </div>
+  <div class="row">
+    <button class="gamebtn" onclick="startGame('animal')">🐾</button>
+    <button class="gamebtn" onclick="startGame('shape')">⭐</button>
+  </div>
+</div>
+
+<div id="confetti"></div>
+
+<script>
+// ---- sound (Web Audio, no files needed) ----
+let actx;
+function beep(freq, dur, type='sine', when=0) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime + when;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  } catch(e){}
+}
+function happy(){ [523,659,784,1047].forEach((f,i)=>beep(f,0.18,'triangle',i*0.09)); }
+function nope(){ beep(180,0.25,'sawtooth'); }
+function speak(txt){
+  try { const u = new SpeechSynthesisUtterance(txt); u.lang='bg-BG'; u.rate=0.9;
+    speechSynthesis.cancel(); speechSynthesis.speak(u); } catch(e){}
+}
+
+// ---- state ----
+let stars = 0;
+const starsEl = document.getElementById('stars');
+const stage = document.getElementById('stage');
+const menu = document.getElementById('menu');
+const promptEl = document.getElementById('prompt');
+const subEl = document.getElementById('promptsub');
+const choicesEl = document.getElementById('choices');
+let current = null;
+
+function renderStars(){ starsEl.textContent = '⭐'.repeat(Math.min(stars,10)); }
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+function goHome(){ speechSynthesis.cancel(); stage.classList.add('hidden'); menu.classList.remove('hidden'); }
+function startGame(type){ current = type; menu.classList.add('hidden'); stage.classList.remove('hidden'); nextRound(); }
+
+// ---- content ----
+const ANIMALS = ['🐶','🐱','🐮','🐷','🐸','🦆','🐔','🐵','🐰','🦁'];
+const ANIMAL_NAMES = {'🐶':'куче','🐱':'коте','🐮':'краве','🐷':'прасе','🐸':'жаба',
+  '🦆':'патка','🐔':'кокошка','🐵':'маймунка','🐰':'зайче','🦁':'лъв'};
+const COLORS = [
+  {emoji:'🔴', name:'червено'}, {emoji:'🟡', name:'жълто'}, {emoji:'🟢', name:'зелено'},
+  {emoji:'🔵', name:'синьо'}, {emoji:'🟣', name:'лилаво'}, {emoji:'🟠', name:'оранжево'}
+];
+const SHAPES = [
+  {emoji:'⭐', name:'звезда'}, {emoji:'❤️', name:'сърце'}, {emoji:'🔺', name:'триъгълник'},
+  {emoji:'⬜', name:'квадрат'}, {emoji:'⚫', name:'кръгче'}, {emoji:'🌙', name:'луна'}
+];
+const NUM_WORDS = ['нула','едно','две','три','четири','пет'];
+
+function nextRound(){
+  choicesEl.innerHTML = ''; subEl.textContent = '';
+  if (current === 'count') return roundCount();
+  if (current === 'color') return roundColor();
+  if (current === 'animal') return roundAnimal();
+  if (current === 'shape') return roundShape();
+}
+
+// Count: show N objects, pick the matching number
+function roundCount(){
+  const n = 1 + Math.floor(Math.random()*5);
+  const obj = pick(['🍎','🍌','🐟','🎈','🍓','🚗','⭐','🦋']);
+  promptEl.textContent = obj.repeat(n);
+  promptEl.style.fontSize = 'clamp(40px, 14vw, 90px)';
+  speak('Колко? ');
+  const opts = new Set([n]);
+  while (opts.size < 3) opts.add(1 + Math.floor(Math.random()*5));
+  buildChoices([...opts].sort(()=>Math.random()-0.5).map(v=>({label:String(v), correct:v===n, say:NUM_WORDS[v]})), 'big');
+}
+
+// Color: name a color, tap the matching swatch
+function roundColor(){
+  const target = pick(COLORS);
+  promptEl.textContent = '❓'; promptEl.style.fontSize='clamp(60px,20vw,140px)';
+  subEl.textContent = target.name;
+  speak(target.name);
+  const others = shuffle(COLORS.filter(c=>c!==target)).slice(0,2);
+  buildChoices(shuffle([target,...others]).map(c=>({label:c.emoji, correct:c===target, say:c.name})), 'big');
+}
+
+// Animal: hear/see an animal name, tap it
+function roundAnimal(){
+  const target = pick(ANIMALS);
+  const name = ANIMAL_NAMES[target];
+  promptEl.textContent = '❓'; promptEl.style.fontSize='clamp(60px,20vw,140px)';
+  subEl.textContent = name;
+  speak(name);
+  const others = shuffle(ANIMALS.filter(a=>a!==target)).slice(0,2);
+  buildChoices(shuffle([target,...others]).map(a=>({label:a, correct:a===target, say:ANIMAL_NAMES[a]})), 'big');
+}
+
+// Shape: name a shape, tap it
+function roundShape(){
+  const target = pick(SHAPES);
+  promptEl.textContent = '❓'; promptEl.style.fontSize='clamp(60px,20vw,140px)';
+  subEl.textContent = target.name;
+  speak(target.name);
+  const others = shuffle(SHAPES.filter(s=>s!==target)).slice(0,2);
+  buildChoices(shuffle([target,...others]).map(s=>({label:s.emoji, correct:s===target, say:s.name})), 'big');
+}
+
+function buildChoices(items, size){
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'choice ' + size;
+    b.textContent = it.label;
+    b.onclick = () => {
+      if (it.correct){
+        b.classList.add('pop'); happy(); if(it.say) speak(it.say);
+        stars++; renderStars(); confetti();
+        setTimeout(nextRound, 1100);
+      } else {
+        b.classList.add('shake'); nope();
+        setTimeout(()=>b.classList.remove('shake'), 400);
+      }
+    };
+    choicesEl.appendChild(b);
+  });
+}
+
+function confetti(){
+  const box = document.getElementById('confetti');
+  const emojis = ['🎉','⭐','🌈','✨','🎈','💖'];
+  for (let i=0;i<18;i++){
+    const c = document.createElement('div');
+    c.className = 'conf'; c.textContent = pick(emojis);
+    c.style.left = Math.random()*100+'%';
+    c.style.top = '-40px';
+    c.style.animationDelay = (Math.random()*0.3)+'s';
+    box.appendChild(c);
+    setTimeout(()=>c.remove(), 1800);
+  }
+}
+
+renderStars();
+// warm up audio on first touch
+document.body.addEventListener('touchstart', ()=>{ if(!actx){ beep(1,0.01); } }, {once:true});
+</script>
